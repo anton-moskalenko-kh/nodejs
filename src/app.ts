@@ -1,43 +1,13 @@
-import express, { Request, Response } from "express";
+import express, { NextFunction, Request, Response } from "express";
 
+import { ApiError } from "./errors/api-error";
 import { fsService } from "./fs.service";
+import { userRouter } from "./routers/user.router";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-app.get("/users", async (req: Request, res: Response) => {
-  try {
-    const users = await fsService.read();
-    res.json(users);
-  } catch (e) {
-    res.status(500).json(e.message);
-  }
-});
-
-app.post("/users", async (req: Request, res: Response) => {
-  try {
-    const { name, email, password } = req.body;
-    const users = await fsService.read();
-    const index = users.findIndex((user) => user.email === email);
-    if (index !== -1) {
-      return res.status(409).json("User with this email already exist");
-    }
-
-    const newUser = {
-      id: users[users.length - 1].id + 1,
-      name,
-      email,
-      password,
-    };
-    users.push(newUser);
-    await fsService.write(users);
-
-    res.status(201).json(newUser);
-  } catch (e) {
-    res.status(500).json(e.message);
-  }
-});
+app.use("/users", userRouter);
 
 app.get("/users/:userId", async (req: Request, res: Response) => {
   try {
@@ -91,6 +61,18 @@ app.delete("/users/:userId", async (req: Request, res: Response) => {
   } catch (e) {
     res.status(500).json(e.message);
   }
+});
+
+app.use(
+  "*",
+  (err: ApiError, req: Request, res: Response, next: NextFunction) => {
+    res.status(err.status || 500).json(err.message);
+  },
+);
+
+process.on("uncaughtException", (e) => {
+  console.error("uncaughtException", e.message, e.stack);
+  process.exit(1);
 });
 
 app.listen(3000, () => {
