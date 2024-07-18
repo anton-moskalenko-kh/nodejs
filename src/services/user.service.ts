@@ -27,6 +27,21 @@ class UserService {
     }
     return await userRepository.create(dto);
   }
+
+  public async getById(userId: number): Promise<IUserInterface> {
+    return await userRepository.getById(userId);
+  }
+
+  public async updateById(
+    userId: number,
+    dto: IUserInterface,
+  ): Promise<IUserInterface> {
+    return await userRepository.updateById(userId, dto);
+  }
+
+  public async deleteById(userId: number): Promise<void> {
+    await userRepository.deleteById(userId);
+  }
 }
 
 export const userService = new UserService();
