@@ -2,6 +2,12 @@ import { IUserInterface } from "../interfaces/user.interface";
 import { UserModel } from "../models/user.model";
 
 class UserRepository {
+  public async getByParams(
+    params: Partial<IUserInterface>,
+  ): Promise<IUserInterface> {
+    return await UserModel.findOne(params);
+  }
+
   public async getList(): Promise<IUserInterface[]> {
     return await UserModel.find();
   }

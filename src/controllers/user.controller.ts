@@ -15,7 +15,7 @@ class UserController {
 
   public async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const dto = req.body as any;
+      const dto = req.body as IUserInterface;
       const result = await userService.create(dto);
       res.status(201).json(result);
     } catch (e) {

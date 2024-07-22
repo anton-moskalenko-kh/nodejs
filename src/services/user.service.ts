@@ -25,6 +25,7 @@ class UserService {
         400,
       );
     }
+    await this.isEmailExist(email);
     return await userRepository.create(dto);
   }
 
@@ -41,6 +42,13 @@ class UserService {
 
   public async deleteById(userId: string): Promise<void> {
     await userRepository.deleteById(userId);
+  }
+
+  private async isEmailExist(email: string): Promise<void> {
+    const user = await userRepository.getByParams({ email });
+    if (user) {
+      throw new ApiError("Email is already exist", 409);
+    }
   }
 }
 
