@@ -23,4 +23,9 @@ export class UserValidator {
     email: UserValidator.email,
     phone: UserValidator.phone,
   });
+
+  public static login = joi.object({
+    email: UserValidator.email.required(),
+    password: UserValidator.password.required(),
+  });
 }
