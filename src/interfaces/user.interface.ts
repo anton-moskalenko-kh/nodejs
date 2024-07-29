@@ -12,3 +12,4 @@ export interface IUserInterface {
   createdAt?: Date;
   updatedAt?: Date;
 }
+export interface ILogin extends Pick<IUserInterface, "email" | "password"> {}

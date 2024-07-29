@@ -48,7 +48,9 @@ class UserController {
     try {
       const userId = req.res.locals.jwtPayload.userId as string;
       await userService.deleteMe(userId);
-      res.sendStatus(204);
+      res.status(200).json({
+        message: "User deleted",
+      });
     } catch (e) {
       next(e);
     }
