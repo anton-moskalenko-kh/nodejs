@@ -1,5 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 
+import {
+  IForgotResetPassword,
+  IForgotSendEmail,
+} from "../interfaces/action-token.interface";
+import { IChangePassword } from "../interfaces/changePassword";
 import { ITokenPayload } from "../interfaces/token.interface";
 import { ILogin, IUserInterface } from "../interfaces/user.interface";
 import { authService } from "../services/auth.service";
@@ -51,6 +56,52 @@ class AuthController {
     try {
       const jwtPayload = req.res.locals.jwtPayload as ITokenPayload;
       await authService.logoutAll(jwtPayload);
+      res.sendStatus(204);
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  public async forgotPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const dto = req.body as IForgotSendEmail;
+      await authService.forgotPassword(dto);
+      res.sendStatus(204);
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  public async forgotPasswordSet(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const dto = req.body as IForgotResetPassword;
+      const jwtPayload = req.res.locals.jwtPayload as ITokenPayload;
+      await authService.forgotPasswordSet(dto, jwtPayload);
+      res.sendStatus(204);
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  public async verify(req: Request, res: Response, next: NextFunction) {
+    try {
+      const jwtPayload = req.res.locals.jwtPayload as ITokenPayload;
+      await authService.verify(jwtPayload);
+      res.sendStatus(204);
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  public async changePassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const jwtPayload = req.res.locals.jwtPayload as ITokenPayload;
+      const dto = req.body as IChangePassword;
+      await authService.changePassword(jwtPayload, dto);
       res.sendStatus(204);
     } catch (e) {
       next(e);

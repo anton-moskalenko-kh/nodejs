@@ -1,7 +1,15 @@
+import { ActionTokenTypeEnum } from "../enums/action-token-type.enum";
 import { EmailTypeEnum } from "../enums/email-type.enum";
 import { ApiError } from "../errors/api-error";
+import {
+  IForgotResetPassword,
+  IForgotSendEmail,
+} from "../interfaces/action-token.interface";
+import { IChangePassword } from "../interfaces/changePassword";
 import { ITokenPair, ITokenPayload } from "../interfaces/token.interface";
 import { ILogin, IUserInterface } from "../interfaces/user.interface";
+import { actionTokenRepository } from "../repositories/action-token.repository";
+import { oldPasswordRepository } from "../repositories/old-password.repository";
 import { tokenRepository } from "../repositories/token.repository";
 import { userRepository } from "../repositories/user.repository";
 import { emailService } from "./email.service";
@@ -20,10 +28,24 @@ class AuthService {
       userId: user._id,
       role: user.role,
     });
+
+    const actionToken = await tokenService.generateActionToken(
+      {
+        userId: user._id,
+        role: user.role,
+      },
+      ActionTokenTypeEnum.VERIFY_EMAIL,
+    );
     await tokenRepository.create({ ...tokens, _userId: user._id });
+
+    await actionTokenRepository.create({
+      _userId: user._id,
+      actionToken,
+      type: ActionTokenTypeEnum.VERIFY_EMAIL,
+    });
     await emailService.sendEmail(EmailTypeEnum.WELCOME, dto.email, {
       name: dto.name,
-      actionToken: "actionToken",
+      actionToken: actionToken,
     });
     return { user, tokens };
   }
@@ -82,6 +104,90 @@ class AuthService {
     await emailService.sendEmail(EmailTypeEnum.LOGOUT, user.email, {
       name: user.name,
     });
+  }
+
+  public async forgotPassword(dto: IForgotSendEmail): Promise<void> {
+    const user = await userRepository.getByParams({ email: dto.email });
+    if (!user) return;
+    const actionToken = await tokenService.generateActionToken(
+      {
+        userId: user._id,
+        role: user.role,
+      },
+      ActionTokenTypeEnum.FORGOT_PASSWORD,
+    );
+    await actionTokenRepository.create({
+      _userId: user._id,
+      actionToken,
+      type: ActionTokenTypeEnum.FORGOT_PASSWORD,
+    });
+    await emailService.sendEmail(EmailTypeEnum.FORGOT_PASSWORD, dto.email, {
+      name: user.name,
+      actionToken,
+    });
+  }
+
+  public async forgotPasswordSet(
+    dto: IForgotResetPassword,
+    jwtPayload: ITokenPayload,
+  ): Promise<void> {
+    const password = await passwordService.hashPassword(dto.password);
+    await userRepository.updateById(jwtPayload.userId, { password });
+
+    await actionTokenRepository.deleteByParams({
+      _userId: jwtPayload.userId,
+      type: ActionTokenTypeEnum.FORGOT_PASSWORD,
+    });
+
+    await tokenRepository.deleteByParams({ _userId: jwtPayload.userId });
+  }
+
+  public async verify(jwtPayload: ITokenPayload): Promise<void> {
+    await userRepository.updateById(jwtPayload.userId, { isVerified: true });
+
+    await actionTokenRepository.deleteByParams({
+      _userId: jwtPayload.userId,
+      type: ActionTokenTypeEnum.VERIFY_EMAIL,
+    });
+  }
+
+  public async changePassword(
+    jwtPayload: ITokenPayload,
+    dto: IChangePassword,
+  ): Promise<void> {
+    const [user, oldPasswords] = await Promise.all([
+      userRepository.getById(jwtPayload.userId),
+      oldPasswordRepository.getByUserId(jwtPayload.userId),
+    ]);
+
+    const isPasswordCorrect = await passwordService.comparePassword(
+      dto.oldPassword,
+      user.password,
+    );
+
+    if (!isPasswordCorrect) {
+      throw new ApiError("Invalid password", 401);
+    }
+    const passwords = [...oldPasswords, { password: user.password }];
+    await Promise.all(
+      passwords.map(async (oldPassword) => {
+        const isOldPassword = await passwordService.comparePassword(
+          dto.newPassword,
+          oldPassword.password,
+        );
+        if (isOldPassword) {
+          throw new ApiError("New passport shouldn't be the same as old", 409);
+        }
+      }),
+    );
+
+    const password = await passwordService.hashPassword(dto.newPassword);
+    await userRepository.updateById(jwtPayload.userId, { password });
+    await oldPasswordRepository.create({
+      password: user.password,
+      _userId: user._id,
+    });
+    await tokenRepository.deleteByParams({ _userId: jwtPayload.userId });
   }
 
   private async isEmailExist(email: string): Promise<void> {

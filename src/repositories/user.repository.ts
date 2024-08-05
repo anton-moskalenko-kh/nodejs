@@ -1,4 +1,5 @@
 import { IUserInterface } from "../interfaces/user.interface";
+import { Token } from "../models/token.model";
 import { UserModel } from "../models/user.model";
 
 class UserRepository {
@@ -22,11 +23,37 @@ class UserRepository {
 
   public async updateById(
     userId: string,
-    dto: IUserInterface,
+    dto: Partial<IUserInterface>,
   ): Promise<IUserInterface> {
     return await UserModel.findByIdAndUpdate(userId, dto, {
       returnDocument: "after",
     });
+  }
+
+  public async findWithOutActivityAfter(date: Date): Promise<IUserInterface[]> {
+    return await UserModel.aggregate([
+      {
+        $lookup: {
+          from: Token.collection.name,
+          let: { userId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$_userId", "$$userId"] } } },
+            { $match: { createdAt: { $gt: date } } },
+          ],
+          as: "tokens",
+        },
+      },
+      {
+        $match: { tokens: { $size: 0 } },
+      },
+      // {
+      //   $project: {
+      //     _id: 1,
+      //     email: 1,
+      //     name: 1,
+      //   },
+      // },
+    ]);
   }
 
   public async deleteById(userId: string): Promise<void> {
