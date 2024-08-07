@@ -6,6 +6,7 @@ export interface IUserInterface {
   age: number;
   email: string;
   password: string;
+  avatar?: string;
   phone?: string;
   role: RoleEnum;
   isVerified: boolean;
