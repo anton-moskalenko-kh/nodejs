@@ -1,4 +1,7 @@
-import { IUserInterface } from "../interfaces/user.interface";
+import { FilterQuery, SortOrder } from "mongoose";
+
+import { UserListOrderByEnum } from "../enums/user-list-order-by.enum";
+import { IUserInterface, IUserListQuery } from "../interfaces/user.interface";
 import { Token } from "../models/token.model";
 import { UserModel } from "../models/user.model";
 
@@ -9,8 +12,32 @@ class UserRepository {
     return await UserModel.findOne(params);
   }
 
-  public async getList(): Promise<IUserInterface[]> {
-    return await UserModel.find();
+  public async getList(
+    query: IUserListQuery,
+  ): Promise<[IUserInterface[], number]> {
+    const filterObj: FilterQuery<IUserInterface> = { isVerified: true };
+    if (query.search) {
+      filterObj.$or = [
+        { name: { $regex: query.search, $options: "i" } },
+        { email: { $regex: query.search, $options: "i" } },
+      ];
+    }
+    const sortObj: { [key: string]: SortOrder } = {};
+    switch (query.orderBy) {
+      case UserListOrderByEnum.NAME:
+        sortObj.name = query.order;
+        break;
+      case UserListOrderByEnum.AGE:
+        sortObj.age = query.order;
+        break;
+      default:
+        throw new Error("Invalid orderBy");
+    }
+    const skip = (query.page - 1) * query.limit;
+    return await Promise.all([
+      UserModel.find(filterObj).sort(sortObj).limit(query.limit).skip(skip),
+      UserModel.countDocuments(filterObj),
+    ]);
   }
 
   public async create(dto: IUserInterface): Promise<IUserInterface> {

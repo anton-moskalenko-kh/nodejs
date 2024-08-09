@@ -4,4 +4,4 @@ const handler = () => {
   console.log("Cron is running");
 };
 
-export const testCron = new CronJob("*/5 * * 8 * *", handler);
+export const testCron = new CronJob("0 0 * * 0", handler);
